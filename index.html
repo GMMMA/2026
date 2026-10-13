@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HAPPY BIRTHDAY · 惠义珈 — P3 Style</title>
+<style>
+@font-face{font-family:Anton;src:url(fonts/Anton-Regular.ttf)}
+@font-face{font-family:Bebas;src:url(fonts/BebasNeue-Regular.ttf)}
+@font-face{font-family:Oswald;src:url(fonts/Oswald.ttf);font-weight:200 700}
+:root{--cyan:#2ee6ff;--blue:#0b3d91;--navy:#03081f;--deep:#061a4d;--white:#f4fbff;--red:#ff1f4b;--green:#3cff9e;
+  --cn:"Microsoft YaHei","PingFang SC","Noto Sans SC","SimHei",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--white);font-family:var(--cn);user-select:none;-webkit-user-select:none}
+canvas#bg,canvas#fx{position:fixed;inset:0;width:100%;height:100%;display:block}
+canvas#fx{z-index:80;pointer-events:none}
+#stage{position:fixed;inset:0;z-index:10}
+.scene{position:absolute;inset:0;display:none;overflow:hidden}
+.scene.active{display:block}
+.shake{animation:shake .45s}
+@keyframes shake{0%,100%{transform:none}15%{transform:translate(-14px,8px)}30%{transform:translate(12px,-10px)}45%{transform:translate(-9px,-6px)}60%{transform:translate(8px,7px)}75%{transform:translate(-4px,3px)}}
+.bgword{position:absolute;left:0;top:28vh;font-family:Anton;font-size:26vw;line-height:1;color:transparent;-webkit-text-stroke:2px rgba(120,220,255,.16);white-space:nowrap;transform:rotate(-8deg);pointer-events:none}
+.bgword span{display:inline-block;animation:drift 40s linear infinite;padding-right:.3em}
+@keyframes drift{to{transform:translateX(-100%)}}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:70;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+.scan{position:fixed;inset:0;pointer-events:none;z-index:71;background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
+.lite .scan{display:none}
+.lite .sl.show{animation-name:slInLite}
+@keyframes slInLite{from{opacity:0;letter-spacing:1em}to{opacity:1;letter-spacing:.35em}}
+.lite #bfly{filter:none}
+.lite .moon{box-shadow:0 0 60px 20px rgba(200,255,140,.3)}
+
+/* ---------- 通用：对话框 ---------- */
+#dialog{position:fixed;left:50%;bottom:4vh;transform:translateX(-50%);width:min(1100px,92vw);min-height:clamp(120px,19vh,170px);
+  padding:clamp(26px,3.6vh,36px) clamp(26px,3vw,48px) 26px;background:linear-gradient(180deg,rgba(5,22,72,.93),rgba(2,8,32,.96));
+  border:2px solid rgba(46,230,255,.85);border-radius:6px 44px 6px 44px;box-shadow:0 0 0 6px rgba(46,230,255,.12),0 12px 40px rgba(0,0,0,.6);z-index:50;display:none}
+#dialog.pop{animation:dpop .28s cubic-bezier(.2,1.4,.4,1)}
+@keyframes dpop{from{transform:translateX(-50%) scale(.9,.2);opacity:0}}
+#dialog::after{content:"";position:absolute;right:-2px;top:-2px;width:120px;height:6px;background:var(--cyan);border-radius:0 44px 0 0}
+#dName{position:absolute;top:-22px;left:34px;background:var(--cyan);color:#020a2a;font-weight:900;font-size:clamp(16px,1.5vw,22px);padding:3px 30px;transform:skewX(-18deg);letter-spacing:.15em;box-shadow:5px 5px 0 #020a2a}
+#dText{font-size:clamp(16px,1.55vw,24px);line-height:1.75;letter-spacing:.06em;white-space:pre-wrap;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+#dNext{position:absolute;right:30px;bottom:12px;color:var(--cyan);font-size:18px;animation:bob .8s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(5px)}}
+.darkhour #dialog{border-color:var(--green);background:linear-gradient(180deg,rgba(0,26,12,.93),rgba(0,8,4,.96));box-shadow:0 0 0 6px rgba(60,255,158,.1),0 12px 40px rgba(0,0,0,.7)}
+.darkhour #dialog::after,.darkhour #dName{background:var(--green)}
+.darkhour #dNext{color:var(--green)}
+
+#hint{position:fixed;right:4vw;bottom:5vh;z-index:60;font-family:Bebas,var(--cn);font-size:clamp(16px,1.6vw,24px);letter-spacing:.25em;color:#fff;display:none;animation:blink 1.4s infinite;text-shadow:0 0 12px var(--cyan)}
+@keyframes blink{50%{opacity:.25}}
+#toast{position:fixed;left:50%;top:7vh;transform:translateX(-50%) skewX(-12deg);z-index:85;background:#fff;color:var(--deep);font-weight:900;padding:10px 30px;font-size:clamp(14px,1.3vw,20px);box-shadow:6px 6px 0 var(--cyan);opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.show{opacity:1}
+#hud{position:fixed;right:2vw;top:2vh;z-index:88;display:flex;gap:10px}
+.hud-btn,.l-btns button{font-family:Bebas,var(--cn);font-size:18px;letter-spacing:.15em;background:rgba(3,12,40,.7);color:var(--cyan);border:1.5px solid var(--cyan);padding:4px 14px 2px;cursor:pointer;transform:skewX(-14deg)}
+.hud-btn:hover,.l-btns button:hover{background:var(--cyan);color:var(--navy)}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:95}
+#flash.go{animation:flash .7s ease-out}
+#flash.green{background:#9dffcf}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+
+/* ---------- 转场 ---------- */
+#wipe{position:fixed;inset:0;pointer-events:none;z-index:90}
+#wipe i{position:absolute;top:-20%;left:-30%;width:160%;height:140%;transform:translateX(-140%) skewX(-20deg)}
+#wipe i:nth-child(1){background:var(--cyan)}
+#wipe i:nth-child(2){background:#fff}
+#wipe i:nth-child(3){background:#04103a;display:flex;align-items:center;justify-content:center}
+#wipe i:nth-child(3) b{font-family:Anton;font-size:8vw;color:transparent;-webkit-text-stroke:2px rgba(46,230,255,.5);transform:skewX(20deg);letter-spacing:.1em;font-weight:400}
+#wipe.in i{animation:wIn .5s cubic-bezier(.75,0,.25,1) forwards}
+#wipe.in i:nth-child(2){animation-delay:.06s}#wipe.in i:nth-child(3){animation-delay:.12s}
+#wipe.out i{transform:translateX(0) skewX(-20deg);animation:wOut .55s cubic-bezier(.75,0,.25,1) forwards}
+#wipe.out i:nth-child(2){animation-delay:.06s}#wipe.out i:nth-child(1){animation-delay:.12s}
+@keyframes wIn{from{transform:translateX(-140%) skewX(-20deg)}to{transform:translateX(0) skewX(-20deg)}}
+@keyframes wOut{from{transform:translateX(0) skewX(-20deg)}to{transform:translateX(140%) skewX(-20deg)}}
+
+/* ---------- 标题画面 ---------- */
+.ring{position:absolute;right:-10vh;top:-6vh;width:80vh;height:80vh;opacity:.38;animation:spin 60s linear infinite}
+.ring text{font-family:Bebas;font-size:31px;fill:#9feeff;letter-spacing:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.t-main{position:absolute;left:8vw;top:15vh;transform:rotate(-7deg);transform-origin:left center}
+.t-hb{font-family:Anton;font-size:min(10.5vw,18vh);line-height:.92;color:#fff;text-shadow:7px 7px 0 rgba(0,30,110,.7);letter-spacing:.01em}
+.t-hb div{animation:slideL .7s cubic-bezier(.2,.9,.2,1) both}
+.t-hb div:nth-child(2){animation-delay:.12s;padding-left:.6em}
+.t-hb .c{color:var(--cyan)}
+@keyframes slideL{from{transform:translateX(-60vw);opacity:0}}
+.t-name{display:inline-block;margin-top:2.4vh;background:#fff;color:#04154a;font-weight:900;font-size:min(6.2vw,10.5vh);padding:.02em .5em;transform:skewX(-14deg);box-shadow:.16em .16em 0 var(--cyan);letter-spacing:.14em;animation:slideL .7s .25s cubic-bezier(.2,.9,.2,1) both}
+.t-sub{font-family:Oswald;font-weight:300;letter-spacing:.55em;font-size:min(1.4vw,2.4vh);margin-top:2.8vh;color:#bfefff;animation:fadeIn 1s .7s both}
+@keyframes fadeIn{from{opacity:0}}
+.press{position:absolute;bottom:11vh;left:0;right:0;text-align:center;font-family:Bebas;font-size:min(2.6vw,4.4vh);letter-spacing:.6em;animation:blink 1.6s infinite;text-shadow:0 0 18px var(--cyan)}
+.menu{position:absolute;right:7vw;bottom:9vh;display:none;flex-direction:column;align-items:flex-end;transform:rotate(-7deg)}
+.menu.show{display:flex}
+.menu-item{font-family:Anton;font-size:min(4.4vw,7.6vh);line-height:1.12;color:rgba(200,240,255,.5);cursor:pointer;position:relative;padding:0 .35em;isolation:isolate;transition:color .15s,transform .15s;animation:slideR .5s cubic-bezier(.2,.9,.2,1) both}
+.menu-item:nth-child(2){animation-delay:.06s}.menu-item:nth-child(3){animation-delay:.12s}.menu-item:nth-child(4){animation-delay:.18s}
+@keyframes slideR{from{transform:translateX(40vw);opacity:0}}
+.menu-item small{font-family:var(--cn);font-size:.26em;font-weight:700;letter-spacing:.2em;margin-left:.6em;vertical-align:middle;opacity:.8}
+.menu-item.sel{color:var(--deep);transform:translateX(-1.2vw)}
+.menu-item.sel::before{content:"";position:absolute;z-index:-1;inset:12% -4% 8% -18%;background:#fff;transform:skewX(-22deg);box-shadow:8px 6px 0 var(--cyan)}
+.menu-item.chosen{animation:chosen .5s forwards}
+@keyframes chosen{30%{transform:translateX(-3vw) scale(1.1)}100%{transform:translateX(-3vw) scale(1.1);opacity:0}}
+
+/* ---------- 影时间 ---------- */
+#clock{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:Oswald;font-weight:300;font-size:min(14vw,24vh);letter-spacing:.06em;color:#d6e6ee;transition:all 1.6s cubic-bezier(.2,.8,.2,1);white-space:nowrap}
+#clock.tk{animation:tk .25s}
+@keyframes tk{from{transform:translate(-50%,-50%) scale(1.04);color:#fff}}
+.on #clock{top:15vh;font-size:min(5vw,9vh);color:var(--green);text-shadow:0 0 24px var(--green);animation:glitch 2.4s infinite steps(1)}
+@keyframes glitch{0%,92%{transform:translate(-50%,-50%)}93%{transform:translate(-52%,-50%) skewX(18deg)}95%{transform:translate(-48%,-49%)}97%{transform:translate(-50%,-51%) skewX(-10deg)}}
+.moon{position:absolute;right:9vw;top:-60vh;width:min(32vw,54vh);height:min(32vw,54vh);border-radius:50%;
+  background:radial-gradient(circle at 38% 36%,#fffff0 0,#f5f3a8 35%,#cfdc72 65%,#8fa944 100%);box-shadow:0 0 120px 50px rgba(200,255,140,.32),inset -20px -30px 60px rgba(60,90,20,.5);transition:top 3.2s cubic-bezier(.2,.8,.2,1)}
+.on .moon{top:10vh}
+.dh-tint{position:absolute;inset:0;background:radial-gradient(ellipse at 70% 30%,rgba(120,255,170,.12),transparent 60%),linear-gradient(0deg,rgba(0,60,25,.5),transparent 60%);opacity:0;transition:opacity 2s}
+.on .dh-tint{opacity:1}
+.dh-t{position:absolute;left:7vw;top:30vh;opacity:0;transition:opacity 1.4s 1.4s,transform 1.4s 1.4s;transform:translateX(-4vw)}
+.on .dh-t{opacity:1;transform:none}
+.dh-t .cn{font-weight:900;font-size:min(9vw,15vh);letter-spacing:.2em;color:#e9fff2;text-shadow:0 0 30px rgba(60,255,158,.8),5px 5px 0 #002a12;transform:skewX(-10deg)}
+.dh-t .en{font-family:Bebas;font-size:min(3vw,5vh);letter-spacing:.8em;color:var(--green);margin-top:1vh}
+.coffins{position:absolute;left:0;right:0;bottom:0;height:34vh;display:flex;align-items:flex-end;justify-content:space-around;padding:0 4vw}
+.coffins i{display:block;background:linear-gradient(180deg,#0a1f12,#020604);clip-path:polygon(28% 0,72% 0,100% 20%,78% 100%,22% 100%,0 20%);
+  transform:translateY(120%);transition:transform 1.8s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 6px rgba(60,255,158,.5));position:relative}
+.coffins i::after{content:"";position:absolute;inset:3px;clip-path:inherit;background:linear-gradient(180deg,rgba(60,255,158,.18),transparent 60%)}
+.on .coffins i{transform:none}
+
+/* ---------- 日历 ---------- */
+.cal{position:absolute;left:8vw;top:16vh;transform:rotate(-5deg);transform-origin:left}
+.cal-year{font-family:Bebas;font-size:min(2.6vw,4.4vh);letter-spacing:.5em;color:var(--cyan)}
+.cal-date{position:relative;height:min(17vw,29vh);width:70vw}
+.cal-date .d{position:absolute;left:0;top:0;font-family:Anton;font-size:min(16vw,27vh);line-height:1.05;white-space:nowrap;color:#fff;text-shadow:8px 8px 0 rgba(0,30,110,.8)}
+.cal-date .d .dow{display:inline-block;font-family:Bebas;font-size:.32em;vertical-align:top;margin:.25em 0 0 .25em;padding:.05em .3em 0;background:var(--cyan);color:var(--navy);transform:skewX(-12deg);text-shadow:none}
+.cal-date .d .dow.sun{background:var(--red);color:#fff}
+.cal-date .d .dow.sat{background:#5fa8ff;color:#fff}
+.cal-date .d.in{animation:dIn .45s cubic-bezier(.2,1.2,.4,1)}
+.cal-date .d.out{animation:dOut .45s forwards}
+@keyframes dIn{from{transform:translateY(50%) rotate(4deg);opacity:0}}
+@keyframes dOut{to{transform:translateY(-55%) rotate(-8deg);opacity:0}}
+.cal-info{margin-top:3vh;display:flex;gap:2.2vw;opacity:0;transform:translateX(-3vw);transition:all .6s}
+.cal-info.show{opacity:1;transform:none}
+.cal-info div{background:rgba(3,12,40,.75);border-left:5px solid var(--cyan);padding:.4em 1.1em;font-size:min(1.5vw,2.6vh);letter-spacing:.15em}
+.cal-info div b{font-family:Bebas;color:var(--cyan);margin-right:.7em;letter-spacing:.2em;font-weight:400}
+.cal-moon{position:absolute;right:9vw;top:13vh;width:min(22vw,38vh);text-align:center;opacity:0;transform:scale(.6) rotate(-30deg);transition:all .9s cubic-bezier(.2,1.3,.4,1)}
+.cal-moon.show{opacity:1;transform:none}
+.cal-moon canvas{width:100%;display:block}
+.cal-moon p{font-family:Bebas,var(--cn);letter-spacing:.4em;color:#bfefff;font-size:min(1.4vw,2.4vh);margin-top:1vh}
+.cal-event{position:absolute;left:6vw;top:62vh;transform:translateX(-120vw) rotate(-5deg);transition:transform .55s cubic-bezier(.2,1.2,.3,1)}
+.cal-event.show{transform:rotate(-5deg)}
+.ev-tag{display:inline-block;font-family:Anton;background:var(--red);color:#fff;font-size:min(2.2vw,3.8vh);padding:.05em .6em;transform:skewX(-14deg);letter-spacing:.15em;vertical-align:middle}
+.ev-main{display:inline-block;background:#fff;color:var(--deep);font-weight:900;font-size:min(5vw,8.5vh);padding:.05em .5em;margin-left:.3em;transform:skewX(-14deg);box-shadow:.15em .15em 0 var(--cyan);vertical-align:middle;letter-spacing:.08em}
+.ev-main b{color:var(--red)}
+.ev-sub{display:block;font-family:Bebas;letter-spacing:.6em;margin:1.4vh 0 0 1vw;color:var(--cyan);font-size:min(1.8vw,3vh)}
+
+/* ---------- 天鹅绒房间 ---------- */
+.vr-head{position:absolute;left:5vw;top:5vh;transform:rotate(-4deg)}
+.vr-head b{display:block;font-family:Anton;font-size:min(5vw,8.5vh);letter-spacing:.06em;color:#fff;font-weight:400;text-shadow:5px 5px 0 #0a2a86}
+.vr-head span{font-family:Bebas,var(--cn);letter-spacing:.5em;color:#8fb6ff;font-size:max(11px,min(1.4vw,2.4vh))}
+.pillar{position:absolute;top:0;bottom:0;width:6vw;background:linear-gradient(90deg,transparent,rgba(80,130,255,.15),transparent)}
+.cards{position:absolute;top:41%;left:50%;transform:translate(-50%,-50%);display:flex;gap:min(4.5vw,6vh);perspective:1400px}
+.tarot{width:min(13vw,22vh);aspect-ratio:9/15;position:relative;animation:float 4s ease-in-out infinite;pointer-events:none}
+.tarot:nth-child(2){animation-delay:-1.3s}.tarot:nth-child(3){animation-delay:-2.6s}
+.cards.ready .tarot{pointer-events:auto;cursor:pointer}
+.cards.ready .tarot:not(.flipped):hover .back{box-shadow:0 0 0 3px #fff,0 0 40px 10px rgba(46,230,255,.7)}
+@keyframes float{50%{transform:translateY(-14px)}}
+.tarot-in{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.3,1.3,.4,1)}
+.tarot.flipped .tarot-in{transform:rotateY(180deg) scale(1.06)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:10px;overflow:hidden}
+.back{background:repeating-linear-gradient(45deg,rgba(46,230,255,.14) 0 2px,transparent 2px 16px),repeating-linear-gradient(-45deg,rgba(46,230,255,.14) 0 2px,transparent 2px 16px),linear-gradient(160deg,#0a2a86,#040c33);
+  border:3px solid var(--cyan);box-shadow:0 0 0 2px #fff,0 0 22px rgba(46,230,255,.45);display:flex;align-items:center;justify-content:center;transition:box-shadow .2s}
+.back::before{content:"";position:absolute;inset:8px;border:1.5px solid rgba(46,230,255,.5);border-radius:6px}
+.back svg{width:52%}
+.front{transform:rotateY(180deg);background:linear-gradient(165deg,#ffffff,#d9f5ff 55%,#9fdcff);color:var(--deep);border:3px solid #fff;box-shadow:0 0 50px 10px rgba(160,230,255,.6);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10% 6%}
+.front::before{content:"";position:absolute;inset:6px;border:2px solid var(--deep);border-radius:6px;pointer-events:none}
+.front .num{font-family:Anton;font-size:min(2.6vw,4.4vh);letter-spacing:.1em}
+.front svg{width:70%;color:var(--deep)}
+.front .nm{font-family:Bebas;font-size:max(12px,min(1.8vw,3vh));letter-spacing:.2em;line-height:1}
+.front .cn{font-weight:900;font-size:max(11px,min(1.5vw,2.6vh));letter-spacing:.5em;background:var(--deep);color:#fff;padding:.1em .3em .1em .8em}
+#bfly{position:fixed;left:0;top:0;width:min(6vw,10vh);z-index:40;pointer-events:none;display:none;filter:drop-shadow(0 0 10px rgba(80,200,255,.9))}
+#bfly .w{animation:flap .32s ease-in-out infinite alternate;transform-origin:50px 40px;transform-box:view-box}
+@keyframes flap{to{transform:scaleX(.25)}}
+
+/* ---------- 羁绊 ---------- */
+.sl-lines{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vh}
+.sl{font-size:min(2.6vw,4.4vh);letter-spacing:.35em;font-weight:700;opacity:0;color:#dff7ff;text-shadow:0 0 20px rgba(46,230,255,.9)}
+.sl.show{animation:slIn 1.4s forwards}
+@keyframes slIn{from{opacity:0;letter-spacing:1em;filter:blur(8px)}to{opacity:1;letter-spacing:.35em;filter:none}}
+.sl-lines.hide{transition:opacity .8s;opacity:0}
+.sl-panel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:5vw;opacity:0;transform:scale(1.1);transition:all .8s cubic-bezier(.2,.9,.3,1);pointer-events:none;padding-bottom:12vh}
+.sl-panel.show{opacity:1;transform:none}
+.sl-card{width:min(15vw,26vh);aspect-ratio:9/15;position:relative;transform:rotate(-6deg)}
+.sl-card .front{transform:none;position:absolute;inset:0;background:linear-gradient(165deg,#fff,#e6dbff 50%,#9fdcff)}
+.sl-info{transform:rotate(-6deg)}
+.sl-tag{display:inline-block;font-family:Anton;letter-spacing:.3em;background:var(--cyan);color:var(--navy);padding:.05em .8em;font-size:min(1.8vw,3vh);transform:skewX(-14deg)}
+.sl-name{font-weight:900;font-size:min(7vw,12vh);letter-spacing:.12em;margin:.1em 0;text-shadow:6px 6px 0 #0a2a86}
+.sl-arc{font-family:Bebas,var(--cn);font-size:min(2vw,3.4vh);letter-spacing:.4em;color:#bfefff}
+.sl-rank{display:flex;align-items:center;gap:1vw;margin-top:3vh}
+.sl-rank>span{font-family:Anton;font-size:min(2.2vw,3.8vh);letter-spacing:.15em}
+.pips{display:flex;gap:.5vw}
+.pips i{width:min(2.4vw,4vh);height:min(2.4vw,4vh);transform:skewX(-14deg);border:2px solid var(--cyan);background:rgba(3,12,40,.6);transition:all .2s}
+.pips i.on{background:var(--cyan);box-shadow:0 0 14px var(--cyan)}
+.sl-max{font-family:Anton;font-weight:400;font-size:min(4.4vw,7.5vh);color:var(--red);-webkit-text-stroke:2px #fff;transform:rotate(-12deg) scale(3);opacity:0;margin-left:1vw}
+.sl-max.show{animation:stamp .35s cubic-bezier(.2,1.4,.4,1) forwards}
+@keyframes stamp{to{opacity:1;transform:rotate(-12deg) scale(1)}}
+
+/* ---------- 总攻击 ---------- */
+#s-allout{background:#0039d6}
+.ao-burst{position:absolute;left:50%;top:50%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;background:repeating-conic-gradient(rgba(255,255,255,.2) 0 3deg,transparent 3deg 12deg);animation:spin 10s linear infinite}
+.ao-band{position:absolute;left:-20%;width:140%;height:21vh;transform:rotate(-12deg) translateX(-130%)}
+.b1{top:13vh;background:var(--red)}.b2{top:41vh;background:#fff}.b3{top:68vh;background:#050505}
+.go .ao-band{animation:band .32s cubic-bezier(.2,.9,.2,1) forwards}
+.go .b2{animation-delay:.1s}.go .b3{animation-delay:.2s}
+@keyframes band{to{transform:rotate(-12deg) translateX(0)}}
+.ao-txt{position:absolute;font-family:Anton;white-space:nowrap;opacity:0;transform:rotate(-12deg) scale(3)}
+.ao-txt.t1{top:9vh;left:5vw;font-size:min(13vw,22vh);color:#fff;-webkit-text-stroke:3px #000;text-shadow:10px 10px 0 #000}
+.ao-txt.t2{top:35vh;right:3vw;font-size:min(15vw,26vh);color:var(--red);-webkit-text-stroke:3px #000;text-shadow:12px 12px 0 #000}
+.go .t1{animation:slam .28s .32s cubic-bezier(.2,1.3,.4,1) forwards}
+.go .t2{animation:slam .28s .72s cubic-bezier(.2,1.3,.4,1) forwards}
+@keyframes slam{to{opacity:1;transform:rotate(-12deg) scale(1)}}
+.ao-sub{position:absolute;top:73vh;left:0;right:0;text-align:center;font-weight:900;font-size:min(4vw,7vh);letter-spacing:.8em;color:#fff;opacity:0;transform:rotate(-12deg)}
+.go .ao-sub{animation:toOn .4s 1.2s forwards}
+@keyframes toOn{to{opacity:1}}
+
+/* ---------- 终幕 ---------- */
+.f-title{position:absolute;left:0;right:0;top:4vh;text-align:center;transform:rotate(-4deg) scale(2.4);opacity:0;pointer-events:none}
+.celebrate .f-title{animation:fslam .45s cubic-bezier(.2,1.3,.4,1) forwards}
+@keyframes fslam{to{opacity:1;transform:rotate(-4deg) scale(1)}}
+.f-title .hb{font-family:Anton;font-size:min(6.4vw,11vh);line-height:1;text-shadow:6px 6px 0 rgba(0,30,110,.8);letter-spacing:.02em}
+.f-title .hb .c{color:var(--cyan)}
+.f-title .nm{display:inline-block;background:#fff;color:var(--deep);font-weight:900;font-size:min(3vw,5vh);padding:0 .6em;transform:skewX(-14deg);box-shadow:.16em .16em 0 var(--red);letter-spacing:.3em;margin-top:.6vh}
+.f-wrap{position:absolute;left:3vw;right:3vw;top:25vh;bottom:3vh;display:flex;align-items:center;justify-content:center;gap:0;transition:gap 1.2s}
+.celebrate .f-wrap{gap:5vw}
+.f-cakebox{display:flex;flex-direction:column;align-items:center}
+.f-hint{margin-top:3vh;font-weight:700;letter-spacing:.3em;font-size:max(13px,min(1.6vw,2.8vh));color:#fff;animation:blink 1.4s infinite;text-shadow:0 0 12px var(--cyan)}
+.cake{--w:min(34vw,54vh,420px);width:var(--w);height:calc(var(--w)*.95);position:relative;cursor:pointer;transition:transform .2s}
+.cake:hover{transform:scale(1.03)}
+.cake .plate{position:absolute;left:-8%;right:-8%;bottom:0;height:10%;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,#fff,#a9d8ff 70%,#3b6fc4);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.tier{position:absolute;border-radius:14px 14px 18px 18px;overflow:hidden}
+.tier.bot{left:0;right:0;bottom:6%;height:36%;background:linear-gradient(180deg,#1564e0,#0a3184)}
+.tier.top{left:16%;right:16%;bottom:41%;height:27%;background:linear-gradient(180deg,#5af0ff,#1aa0d8)}
+.drip{position:absolute;left:0;right:0;top:0;height:34%;background:radial-gradient(circle at 50% 0,#fff 0 58%,transparent 60%) 0 0/12.5% 100% repeat-x,linear-gradient(#fff,#fff) 0 0/100% 30% no-repeat}
+.tier.top .drip{background-size:16.66% 100%,100% 32%}
+.sees{position:absolute;left:0;right:0;bottom:16%;text-align:center;font-family:Bebas;letter-spacing:.6em;color:#bfefff;font-size:calc(var(--w)*.065)}
+.plaque{position:absolute;left:50%;bottom:14%;transform:translateX(-50%) skewX(-12deg);background:var(--deep);color:#fff;font-weight:900;padding:.1em .6em;font-size:calc(var(--w)*.06);letter-spacing:.25em;white-space:nowrap}
+.candles{position:absolute;left:22%;right:22%;bottom:68%;height:20%;display:flex;justify-content:space-around;align-items:flex-end}
+.candle{width:calc(var(--w)*.032);height:100%;border-radius:3px;position:relative;background:repeating-linear-gradient(-45deg,#fff 0 5px,#ff6b9a 5px 10px);box-shadow:inset -3px 0 0 rgba(0,0,0,.12)}
+.candle:nth-child(even){background:repeating-linear-gradient(-45deg,#fff 0 5px,var(--cyan) 5px 10px)}
+.flame{position:absolute;left:50%;bottom:100%;width:calc(var(--w)*.045);height:calc(var(--w)*.085);margin-left:calc(var(--w)*-.0225);border-radius:50% 50% 50% 50%/62% 62% 38% 38%;
+  background:radial-gradient(ellipse at 50% 72%,#fff 0 18%,#fff27a 35%,#ffab1f 62%,rgba(255,80,0,0) 74%);box-shadow:0 0 22px 8px rgba(255,190,60,.45);transform-origin:50% 90%;animation:flick .12s infinite alternate;transition:opacity .25s,transform .25s}
+.candle:nth-child(2) .flame{animation-duration:.15s}.candle:nth-child(3) .flame{animation-duration:.1s}.candle:nth-child(4) .flame{animation-duration:.17s}
+@keyframes flick{to{transform:scale(.92,1.06) rotate(3deg)}}
+.smoke{position:absolute;left:50%;bottom:100%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:rgba(220,230,255,.6);opacity:0}
+.cake.out .flame{opacity:0;transform:scale(.2) translateY(-20px);animation:none}
+.cake.out .smoke{animation:smoke 1.6s ease-out forwards}
+@keyframes smoke{0%{opacity:.8;transform:none}100%{opacity:0;transform:translate(14px,-90px) scale(5)}}
+.cake.out{cursor:default}
+.letter{max-width:0;opacity:0;overflow:hidden;transition:max-width 1.3s cubic-bezier(.3,.9,.3,1),opacity .8s .5s}
+.celebrate .letter{max-width:640px;opacity:1}
+.letter-in{width:min(560px,48vw);position:relative;background:linear-gradient(180deg,rgba(5,22,72,.92),rgba(2,8,32,.95));border:2px solid var(--cyan);border-radius:6px 40px 6px 40px;padding:4.5vh 2.6vw 3vh;margin:24px 8px 8px;box-shadow:0 0 0 6px rgba(46,230,255,.12)}
+.l-to{position:absolute;top:-20px;left:28px;background:var(--cyan);color:var(--navy);font-family:Anton;letter-spacing:.2em;padding:2px 24px;transform:skewX(-16deg);font-size:max(13px,min(1.5vw,2.6vh));box-shadow:5px 5px 0 var(--navy)}
+.l-to b{font-family:var(--cn);font-weight:900}
+#lBody p{font-size:clamp(13px,1.15vw,18px);line-height:1.85;letter-spacing:.06em;margin-bottom:.45em;opacity:0;transform:translateX(20px);transition:all .6s calc(1.2s + var(--i)*.45s)}
+#lBody p:first-child{font-size:clamp(18px,1.7vw,28px);font-weight:900;color:var(--cyan)}
+.celebrate #lBody p{opacity:1;transform:none}
+.l-from{text-align:right;color:#bfefff;margin-top:1.2vh;font-size:clamp(13px,1.1vw,17px);letter-spacing:.15em;opacity:0;transition:opacity .8s 5s}
+.celebrate .l-from{opacity:1}
+.l-btns{display:flex;gap:14px;justify-content:flex-end;margin-top:2.2vh;opacity:0;transition:opacity .8s 5.6s}
+.celebrate .l-btns{opacity:1}
+@media (max-aspect-ratio:1/1){
+  .f-wrap{flex-direction:column;top:17vh}
+  .letter{max-width:none;max-height:0;transition:max-height 1.3s,opacity .8s .5s}
+  .celebrate .letter{max-height:60vh;overflow-y:auto;scrollbar-width:none}
+  .letter-in{width:90vw}
+  .cake{--w:min(60vw,26vh)}
+  .celebrate .f-wrap{gap:2vh}
+  .cards{gap:3vw}.tarot{width:26vw}
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="stage">
+
+  <!-- 0 标题 -->
+  <section id="s-title" class="scene">
+    <div class="bgword"><span>BIRTHDAY BIRTHDAY </span><span>BIRTHDAY BIRTHDAY </span></div>
+    <svg class="ring" viewBox="0 0 400 400"><defs><path id="circ" d="M200,200 m-165,0 a165,165 0 1,1 330,0 a165,165 0 1,1 -330,0"/></defs>
+      <circle cx="200" cy="200" r="188" fill="none" stroke="#9feeff" stroke-width="1.5"/><circle cx="200" cy="200" r="140" fill="none" stroke="#9feeff" stroke-width="1" stroke-dasharray="4 8"/>
+      <text><textPath href="#circ" textLength="1030" lengthAdjust="spacing">MEMENTO MORI · CARPE DIEM · HAPPY BIRTHDAY · BURN MY DREAD · </textPath></text></svg>
+    <div class="t-main">
+      <div class="t-hb"><div>HAPPY</div><div class="c">BIRTHDAY</div></div>
+      <div class="t-name" data-name>惠义珈</div>
+      <div class="t-sub">PERSONA 3 · BIRTHDAY EDITION</div>
+    </div>
+    <div class="press">PRESS ANY BUTTON</div>
+    <div class="menu" id="menu">
+      <div class="menu-item" data-act="start">NEW GAME<small>开始今天</small></div>
+      <div class="menu-item" data-msg="找不到存档——今天是独一无二的一天。">LOAD GAME<small>读取</small></div>
+      <div class="menu-item" data-msg="设定已最优化：快乐值 ×100">CONFIG<small>设定</small></div>
+      <div class="menu-item" data-msg="生日这天，可不许逃跑哦。">QUIT<small>结束</small></div>
+    </div>
+  </section>
+
+  <!-- 1 影时间 -->
+  <section id="s-dark" class="scene">
+    <div class="dh-tint"></div>
+    <div class="moon"></div>
+    <div class="dh-t"><div class="cn">影时间</div><div class="en">THE DARK HOUR</div></div>
+    <div class="coffins" id="coffins"></div>
+    <div id="clock">23:59:55</div>
+  </section>
+
+  <!-- 2 日历 -->
+  <section id="s-cal" class="scene">
+    <div class="bgword" style="top:48vh"><span>TODAY TODAY TODAY </span><span>TODAY TODAY TODAY </span></div>
+    <div class="cal">
+      <div class="cal-year" id="calYear">2026</div>
+      <div class="cal-date" id="calDate"></div>
+      <div class="cal-info" id="calInfo"><div><b>WEATHER</b>快晴</div><div><b>TIME</b><span id="calTime"></span></div></div>
+    </div>
+    <div class="cal-moon" id="calMoon"><canvas id="moonC" width="300" height="300"></canvas><p id="moonName"></p></div>
+    <div class="cal-event" id="calEvent"><span class="ev-tag">EVENT</span><span class="ev-main"><b data-name>惠义珈</b> 的生日</span><span class="ev-sub">BIRTHDAY · 特别的一天</span></div>
+  </section>
+
+  <!-- 3 天鹅绒房间 -->
+  <section id="s-velvet" class="scene">
+    <div class="pillar" style="left:12vw"></div><div class="pillar" style="right:12vw"></div>
+    <div class="bgword" style="top:56vh;-webkit-text-stroke-color:rgba(120,160,255,.12)"><span>VELVET ROOM VELVET ROOM </span><span>VELVET ROOM VELVET ROOM </span></div>
+    <div class="vr-head"><b>VELVET ROOM</b><span>天鹅绒房间 · 梦境与现实的狭间</span></div>
+    <div class="cards" id="cards">
+      <div class="tarot" data-k="star"><div class="tarot-in">
+        <div class="face back"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#2ee6ff" stroke-width="3"/><path d="M62 22a30 30 0 1 0 0 56a24 24 0 1 1 0-56z" fill="#2ee6ff"/></svg></div>
+        <div class="face front"><div class="num">XVII</div>
+          <svg viewBox="0 0 100 100"><polygon points="50,10 59.4,37.06 88.04,37.64 65.22,54.94 73.51,82.36 50,66 26.49,82.36 34.78,54.94 11.96,37.64 40.6,37.06" fill="currentColor"/><circle cx="86" cy="12" r="4" fill="currentColor"/><circle cx="14" cy="88" r="3" fill="currentColor"/><circle cx="90" cy="80" r="2.5" fill="currentColor"/></svg>
+          <div class="nm">THE STAR</div><div class="cn">星</div></div>
+      </div></div>
+      <div class="tarot" data-k="sun"><div class="tarot-in">
+        <div class="face back"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#2ee6ff" stroke-width="3"/><path d="M62 22a30 30 0 1 0 0 56a24 24 0 1 1 0-56z" fill="#2ee6ff"/></svg></div>
+        <div class="face front"><div class="num">XIX</div>
+          <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="14" stroke-dasharray="5 14.9"/><circle cx="50" cy="50" r="22" fill="currentColor"/></svg>
+          <div class="nm">THE SUN</div><div class="cn">太阳</div></div>
+      </div></div>
+      <div class="tarot" data-k="fool"><div class="tarot-in">
+        <div class="face back"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#2ee6ff" stroke-width="3"/><path d="M62 22a30 30 0 1 0 0 56a24 24 0 1 1 0-56z" fill="#2ee6ff"/></svg></div>
+        <div class="face front"><div class="num">0</div>
+          <svg viewBox="0 0 100 100"><ellipse cx="50" cy="52" rx="26" ry="36" fill="none" stroke="currentColor" stroke-width="9"/><path d="M50 4l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="currentColor"/><path d="M10 96 Q50 70 90 96" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="4 5"/></svg>
+          <div class="nm">THE FOOL</div><div class="cn">愚者</div></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 4 羁绊 -->
+  <section id="s-social" class="scene">
+    <div class="sl-lines" id="slLines">
+      <p class="sl">我即是汝……汝即是我……</p>
+      <p class="sl">汝已获得新的羁绊……</p>
+      <p class="sl">羁绊将化为羽翼，助汝挣脱命运的枷锁……</p>
+    </div>
+    <div class="sl-panel" id="slPanel">
+      <div class="sl-card"><div class="face front"><div class="num">∞</div>
+        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="11" fill="currentColor"/><ellipse cx="50" cy="50" rx="42" ry="14" fill="none" stroke="currentColor" stroke-width="3" transform="rotate(-25 50 50)"/><ellipse cx="50" cy="50" rx="42" ry="14" fill="none" stroke="currentColor" stroke-width="3" transform="rotate(35 50 50)"/><circle cx="88" cy="32" r="4" fill="currentColor"/><circle cx="18" cy="80" r="4" fill="currentColor"/></svg>
+        <div class="nm">THE UNIVERSE</div><div class="cn">宇宙</div></div></div>
+      <div class="sl-info">
+        <div class="sl-tag">COMMUNITY</div>
+        <div class="sl-name" data-name>惠义珈</div>
+        <div class="sl-arc">宇宙 · THE UNIVERSE ARCANA</div>
+        <div class="sl-rank"><span>RANK</span><div class="pips" id="pips"></div><b class="sl-max" id="slMax">MAX</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 总攻击 -->
+  <section id="s-allout" class="scene">
+    <div class="ao-burst"></div>
+    <div class="ao-band b1"></div><div class="ao-band b2"></div><div class="ao-band b3"></div>
+    <div class="ao-txt t1">ALL-OUT</div>
+    <div class="ao-txt t2">BIRTHDAY!!</div>
+    <div class="ao-sub">总 · 祝 · 福</div>
+  </section>
+
+  <!-- 6 终幕 -->
+  <section id="s-final" class="scene">
+    <div class="bgword" style="top:50vh"><span>HAPPY BIRTHDAY HAPPY BIRTHDAY </span><span>HAPPY BIRTHDAY HAPPY BIRTHDAY </span></div>
+    <div class="f-title"><div class="hb">HAPPY <span class="c">BIRTHDAY</span></div><div class="nm"><span data-name>惠义珈</span> · 生日快乐</div></div>
+    <div class="f-wrap">
+      <div class="f-cakebox">
+        <div class="cake" id="cake">
+          <div class="plate"></div>
+          <div class="tier bot"><div class="drip"></div><div class="sees">S.E.E.S.</div></div>
+          <div class="tier top"><div class="drip"></div><div class="plaque" data-name>惠义珈</div></div>
+          <div class="candles"><div class="candle"><i class="flame"></i><i class="smoke"></i></div><div class="candle"><i class="flame"></i><i class="smoke"></i></div><div class="candle"><i class="flame"></i><i class="smoke"></i></div><div class="candle"><i class="flame"></i><i class="smoke"></i></div><div class="candle"><i class="flame"></i><i class="smoke"></i></div></div>
+        </div>
+        <div class="f-hint" id="fHint">▲ 点击蛋糕 · 许个愿，吹灭蜡烛</div>
+      </div>
+      <div class="letter"><div class="letter-in">
+        <div class="l-to">TO: <b data-name>惠义珈</b></div>
+        <div id="lBody"></div>
+        <div class="l-from" id="lFrom"></div>
+        <div class="l-btns"><button id="bSong">♪ 再唱一次</button><button id="bReplay">↺ 从头再来</button></div>
+      </div></div>
+    </div>
+  </section>
+</div>
+
+<svg id="bfly" viewBox="0 0 100 80"><defs><linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bff6ff"/><stop offset=".5" stop-color="#2ee6ff"/><stop offset="1" stop-color="#1a4dff"/></linearGradient></defs>
+  <g class="w"><path d="M50 38C44 10 14 4 12 22C10 36 30 42 50 40Z" fill="url(#bg1)"/><path d="M50 42C34 46 22 62 30 72C38 78 46 60 50 44Z" fill="url(#bg1)"/>
+  <path d="M50 38C56 10 86 4 88 22C90 36 70 42 50 40Z" fill="url(#bg1)"/><path d="M50 42C66 46 78 62 70 72C62 78 54 60 50 44Z" fill="url(#bg1)"/></g>
+  <ellipse cx="50" cy="41" rx="1.8" ry="12" fill="#e9fdff"/></svg>
+
+<div id="dialog"><div id="dName"><span>NAME</span></div><div id="dText"></div><div id="dNext">▼</div></div>
+<div id="hint">▼ CLICK</div>
+<div id="toast"></div>
+<div id="hud"><button class="hud-btn" id="bMute">♪ ON</button></div>
+<div id="wipe"><i></i><i></i><i><b>BIRTHDAY</b></i></div>
+<div id="flash"></div>
+<canvas id="fx"></canvas>
+<div class="vignette"></div><div class="scan"></div>
+
+<script>
+/* ================= 参数 ================= */
+const Q = new URLSearchParams(location.search);
+const LITE = Q.has("lite") || (!Q.has("full") && matchMedia("(pointer:coarse)").matches);
+if (LITE) document.documentElement.classList.add("lite");
+const NAME = Q.get('name') || '惠义珈';
+const FROM = Q.get('from') || '';
+let TODAY = new Date();
+if (Q.get('date')) { const [m, d] = Q.get('date').split(/[-\/.]/).map(Number); if (m && d) TODAY = new Date(TODAY.getFullYear(), m - 1, d, TODAY.getHours()); }
+document.querySelectorAll('[data-name]').forEach(e => e.textContent = NAME);
+document.title = `HAPPY BIRTHDAY · ${NAME} — P3 Style`;
+
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+
+/* ================= 音频（全部用 WebAudio 现场合成） ================= */
+const PROG = [
+  { c: [53, 57, 60, 64], b: 41 },                                   // Fmaj7
+  { c: [52, 56, 59, 62], b: 40 },                                   // E7
+  { c: [57, 60, 64, 67], b: 45 },                                   // Am7
+  { c: [55, 58, 62, 65], b: 43, c2: [52, 55, 58, 62], b2: 48 },     // Gm7 → C9
+];
+const HOOK = [
+  [[0, 76, 2], [3, 74, 1], [4, 72, 2], [6, 69, 3], [10, 72, 2], [12, 74, 4]],
+  [[0, 71, 3], [3, 68, 1], [4, 71, 3], [8, 74, 4], [12, 76, 4]],
+  [[0, 72, 2], [2, 76, 2], [4, 79, 4], [8, 81, 2], [10, 79, 2], [12, 76, 4]],
+  [[0, 74, 3], [3, 72, 1], [4, 70, 4], [8, 72, 2], [10, 76, 2], [12, 79, 4]],
+];
+const A = {
+  ctx: null, on: true, mode: 'off', step: 0, next: 0, bpm: 86, drone: null, _lb: 0,
+  init() {
+    if (this.ctx) { this.ctx.resume(); return; }
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    const c = this.ctx = new C();
+    this.out = this.g(.8);
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    this.out.connect(comp); comp.connect(c.destination);
+    this.mus = this.g(.6); this.mus.connect(this.out);
+    this.sfx = this.g(.7); this.sfx.connect(this.out);
+    this.rev = c.createConvolver(); this.rev.buffer = this.impulse(LITE ? 1.3 : 2.4, 2.6);
+    const rg = this.g(.35); this.rev.connect(rg); rg.connect(this.out);
+    const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this.nbuf = nb;
+    this.next = c.currentTime + .1;
+    setInterval(() => this.sched(), 25);
+  },
+  g(v) { const g = this.ctx.createGain(); g.gain.value = v; return g; },
+  impulse(sec, decay) {
+    const c = this.ctx, r = c.sampleRate, len = r * sec, b = c.createBuffer(2, len, r);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+    return b;
+  },
+  toggle() { this.on = !this.on; if (this.ctx) this.out.gain.setTargetAtTime(this.on ? .8 : 0, this.ctx.currentTime, .05); return this.on; },
+  setMode(m) {
+    this.mode = m; if (!this.ctx) return;
+    this.step = 0; this.next = this.ctx.currentTime + .06;
+    if (m === 'dark') this.startDrone(); else this.stopDrone();
+  },
+  sched() {
+    const c = this.ctx;
+    if (this.next < c.currentTime - .2) this.next = c.currentTime + .05;
+    while (this.next < c.currentTime + .12) {
+      this.playStep(this.step, this.next);
+      const s16 = 60 / this.bpm / 4;
+      this.next += s16 * (this.step % 2 === 0 ? 1.16 : .84);
+      this.step++;
+    }
+  },
+  playStep(s, t) {
+    const m = this.mode; if (m === 'off') return;
+    const st = s % 16, bar = Math.floor(s / 16) % 4, big = Math.floor(s / 16) % 8;
+    const P = PROG[bar], second = st >= 8 && P.c2, ch = second ? P.c2 : P.c, root = second ? P.b2 : P.b;
+    const beat = 60 / this.bpm;
+    if (m === 'dark') {
+      if (st === 0) this.kick(t, .5, true);
+      if (st === 3) this.kick(t, .3, true);
+      if (st === 8 && bar % 2 === 1) this.bell(93, t, 2, .025);
+      return;
+    }
+    if (m === 'velvet') {
+      if (st % 2 === 0) this.bell(ch[[0, 2, 1, 3, 2, 3, 1, 2][st / 2] % ch.length] + 24, t, 1.1, .07);
+      if (st === 0) this.pad(P.c, t, beat * (P.c2 ? 2 : 4), .022);
+      if (st === 8 && P.c2) this.pad(P.c2, t, beat * 2, .022);
+      if (st === 0 || st === 8) this.bass(root, t, beat * 1.6, .16);
+      return;
+    }
+    // title / beat
+    if (st === 0 || st === 6 || st === 10 || (st === 8 && P.c2)) this.chord(ch, t, st === 0 || st === 8 ? beat * 1.5 : beat * .6, .085);
+    const bo = second ? { 8: 0, 11: 12, 14: 10 } : { 0: 0, 3: 0, 8: 7, 11: 12, 14: 10 };
+    if (!second && st < 8 && (st === 0 || st === 3)) this.bass(root, t, beat * .7, .3);
+    else if (bo[st] !== undefined && st >= 8) this.bass(root + bo[st], t, beat * .5, .26);
+    this.hat(t, st % 2 === 0 ? .1 : .035, st === 14);
+    if (m === 'title') return;
+    if (st === 0 || st === 7 || st === 10) this.kick(t, .8);
+    if (st === 4 || st === 12) this.snare(t, .35);
+    if (big >= 4) for (const [hs, n, l] of HOOK[bar]) if (hs === st) this.lead(n, t, l * beat / 4, .09);
+  },
+  env(g, t, a, v, d) { const p = g.gain; p.setValueAtTime(.0001, t); p.linearRampToValueAtTime(v, t + a); p.exponentialRampToValueAtTime(.0001, t + a + d); },
+  noise(t, dur) { const s = this.ctx.createBufferSource(); s.buffer = this.nbuf; s.loop = true; s.start(t, Math.random() * .5); s.stop(t + dur + .05); return this.track(s); },
+  track(n) { if (this.capture) this.capture.push(n); return n; },
+  stopSong() {
+    if (!this.song) return; const t = this.ctx.currentTime, p = this.song.bus.gain;
+    p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(.0001, t + .12);
+    this.song.nodes.forEach(n => { try { n.stop(t + .15); } catch (e) {} });
+    this.song = null;
+  },
+  fm(n, t, dur, v, ratio, idx, dest, rev) {
+    const c = this.ctx, f = mtof(n);
+    const car = c.createOscillator(), mod = c.createOscillator(), mg = c.createGain(), g = c.createGain();
+    car.frequency.value = f; mod.frequency.value = f * ratio;
+    mg.gain.setValueAtTime(f * idx, t); mg.gain.exponentialRampToValueAtTime(f * idx * .03 + .01, t + Math.min(dur, .6));
+    mod.connect(mg); mg.connect(car.frequency); car.connect(g); this.env(g, t, .004, v, dur);
+    g.connect(dest || this.capDest || this.mus);
+    if (rev) { const s = this.g(rev); g.connect(s); s.connect(this.rev); }
+    this.track(car); this.track(mod); car.start(t); mod.start(t); car.stop(t + dur + .1); mod.stop(t + dur + .1);
+  },
+  ep(n, t, d, v, dest) { this.fm(n, t, d, v, 1, 1.1, dest, .3); },
+  bell(n, t, d, v, dest) { this.fm(n, t, d, v, 3.5, 1.6, dest, .5); },
+  chord(ns, t, d, v) { ns.forEach((n, i) => this.ep(n, t + i * .012, d, v)); },
+  bass(n, t, d, v) {
+    const c = this.ctx, o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'triangle'; o.frequency.value = mtof(n); lp.type = 'lowpass'; lp.frequency.value = 700;
+    this.env(g, t, .006, v, d); o.connect(lp); lp.connect(g); g.connect(this.capDest || this.mus); this.track(o); o.start(t); o.stop(t + d + .1);
+  },
+  kick(t, v, soft, dest) {
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.frequency.setValueAtTime(soft ? 90 : 150, t); o.frequency.exponentialRampToValueAtTime(soft ? 35 : 42, t + .14);
+    this.env(g, t, .002, v, soft ? .5 : .38); o.connect(g); g.connect(dest || this.mus); o.start(t); o.stop(t + .6);
+  },
+  snare(t, v) {
+    const c = this.ctx, s = this.noise(t, .25), bp = c.createBiquadFilter(), g = c.createGain();
+    bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = .8; this.env(g, t, .002, v, .16);
+    s.connect(bp); bp.connect(g); g.connect(this.mus); const rs = this.g(.25); g.connect(rs); rs.connect(this.rev);
+    const o = c.createOscillator(), g2 = c.createGain(); o.type = 'triangle';
+    o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(140, t + .08);
+    this.env(g2, t, .002, v * .6, .08); o.connect(g2); g2.connect(this.mus); o.start(t); o.stop(t + .2);
+  },
+  hat(t, v, open) {
+    const c = this.ctx, s = this.noise(t, .4), hp = c.createBiquadFilter(), g = c.createGain();
+    hp.type = 'highpass'; hp.frequency.value = 7500; this.env(g, t, .001, v, open ? .22 : .035);
+    s.connect(hp); hp.connect(g); g.connect(this.capDest || this.mus);
+  },
+  lead(n, t, d, v) {
+    const c = this.ctx, f = mtof(n), o = c.createOscillator(), l = c.createOscillator(), lg = this.g(f * .006), o2 = c.createOscillator(), g2 = this.g(.25), g = c.createGain();
+    o.type = 'triangle'; o.frequency.value = f; l.frequency.value = 5.2; l.connect(lg); lg.connect(o.frequency);
+    o2.frequency.value = f * 2; o2.connect(g2);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(v, t + .025); g.gain.setTargetAtTime(v * .6, t + .06, .15); g.gain.setTargetAtTime(.0001, t + d, .08);
+    o.connect(g); g2.connect(g); g.connect(this.mus); const rs = this.g(.45); g.connect(rs); rs.connect(this.rev);
+    [o, l, o2].forEach(x => { x.start(t); x.stop(t + d + .6); });
+  },
+  pad(ns, t, d, v) {
+    const c = this.ctx, lp = c.createBiquadFilter(), g = c.createGain();
+    lp.type = 'lowpass'; lp.frequency.value = 1100;
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(v, t + .5); g.gain.setValueAtTime(v, t + Math.max(.6, d - .3)); g.gain.linearRampToValueAtTime(.0001, t + d + .4);
+    lp.connect(g); g.connect(this.mus); const rs = this.g(.5); g.connect(rs); rs.connect(this.rev);
+    ns.forEach(n => [-7, 7].forEach(dt => { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = dt; o.connect(lp); o.start(t); o.stop(t + d + .5); }));
+  },
+  startDrone() {
+    if (this.drone) return;
+    const c = this.ctx, t = c.currentTime, lp = c.createBiquadFilter(), lfo = c.createOscillator(), lg = this.g(140), g = c.createGain();
+    lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 4; lfo.frequency.value = .15; lfo.connect(lg); lg.connect(lp.frequency);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.16, t + 2.5); lp.connect(g); g.connect(this.mus);
+    const os = [55, 55.35, 82.6, 110.3].map(f => { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(t); return o; });
+    lfo.start(t); this.drone = { g, os: [...os, lfo] };
+  },
+  stopDrone() {
+    if (!this.drone) return; const t = this.ctx.currentTime, p = this.drone.g.gain;
+    p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.setTargetAtTime(.0001, t, .4);
+    this.drone.os.forEach(o => o.stop(t + 2.5)); this.drone = null;
+  },
+  /* —— 音效 —— */
+  sfxOsc(type, f1, f2, dur, v) {
+    if (!this.ctx) return; const c = this.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    this.env(g, t, .003, v, dur); o.connect(g); g.connect(this.sfx); o.start(t); o.stop(t + dur + .05);
+  },
+  sfxNoise(type, f1, f2, dur, v, rev) {
+    if (!this.ctx) return; const c = this.ctx, t = c.currentTime, s = this.noise(t, dur + .1), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = type; f.frequency.setValueAtTime(f1, t); if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur); f.Q.value = 1.2;
+    this.env(g, t, .01, v, dur); s.connect(f); f.connect(g); g.connect(this.sfx); if (rev) { const r = this.g(rev); g.connect(r); r.connect(this.rev); }
+  },
+  blip() { if (!this.ctx) return; const t = this.ctx.currentTime; if (t - this._lb < .05) return; this._lb = t; this.sfxOsc('sine', 1250 + Math.random() * 120, 0, .03, .045); },
+  move() { this.sfxOsc('sine', 1000, 1500, .06, .1); },
+  buzz() { this.sfxOsc('square', 180, 120, .14, .05); },
+  confirm() { if (!this.ctx) return; const t = this.ctx.currentTime; this.bell(84, t, .5, .12, this.sfx); this.bell(91, t + .07, .7, .1, this.sfx); },
+  tick() { this.sfxNoise('highpass', 3000, 0, .03, .35); this.sfxOsc('sine', 2100, 0, .02, .08); },
+  boom() { this.sfxOsc('sine', 95, 28, 1.6, .7); this.sfxNoise('lowpass', 500, 80, 1.3, .35, .5); },
+  flip() { this.sfxNoise('bandpass', 700, 4000, .3, .22); },
+  chime() { if (!this.ctx) return; const t = this.ctx.currentTime; [84, 88, 91, 96].forEach((n, i) => this.bell(n, t + i * .06, 1.2, .07, this.sfx)); },
+  whoosh() { this.sfxNoise('bandpass', 400, 3000, .45, .28); },
+  slash() { this.sfxNoise('highpass', 2000, 6000, .16, .4); this.sfxOsc('sawtooth', 1400, 180, .18, .06); },
+  stamp() { if (!this.ctx) return; const t = this.ctx.currentTime; this.kick(t, .9, false, this.sfx); this.sfxNoise('lowpass', 2500, 300, .2, .3); [60, 64, 67, 72].forEach(n => this.ep(n, t, .6, .06, this.sfx)); },
+  pip(i) { if (!this.ctx) return; this.bell(72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16][i], this.ctx.currentTime, .5, .1, this.sfx); },
+  rankup() { if (!this.ctx) return; const t = this.ctx.currentTime; [72, 76, 79, 84, 88, 91, 96].forEach((n, i) => this.bell(n, t + i * .05, 1.4, .08, this.sfx)); [48, 55, 64, 67, 71, 74].forEach(n => this.ep(n, t + .3, 2.2, .07, this.sfx)); },
+  blow() { this.sfxNoise('lowpass', 1400, 300, 1.1, .4); },
+  fanfare() { if (!this.ctx) return; const t = this.ctx.currentTime; [60, 64, 67, 72, 76, 79].forEach((n, i) => { this.ep(n, t + i * .03, 1.6, .1, this.sfx); this.bell(n + 12, t + i * .07, 1.5, .04, this.sfx); }); this.kick(t, 1, false, this.sfx); },
+  playBirthday() {
+    if (!this.ctx) return 0;
+    this.stopSong();                       // 重唱前先停掉上一遍已排好的音符
+    const bus = this.g(1); bus.connect(this.mus);
+    this.song = { bus, nodes: this.capture = [] }; this.capDest = bus;
+    const b = .6, t0 = this.ctx.currentTime + .2;
+    const M = [[67, .75], [67, .25], [69, 1], [67, 1], [72, 1], [71, 2], [67, .75], [67, .25], [69, 1], [67, 1], [74, 1], [72, 2],
+      [67, .75], [67, .25], [79, 1], [76, 1], [72, 1], [71, 1], [69, 1], [77, .75], [77, .25], [76, 1], [72, 1], [74, 1], [72, 3]];
+    let tt = t0;
+    M.forEach(([n, d]) => { this.ep(n, tt, d * b + .35, .2); this.bell(n + 12, tt, d * b + .2, .045); tt += d * b; });
+    const CH = { C: [[55, 60, 64], 48], G: [[55, 59, 62], 43], C7: [[58, 60, 64], 48], F: [[57, 60, 65], 41] };
+    const bars = [['C'], ['G'], ['G'], ['C'], ['C7'], ['F'], ['C', 'C', 'G'], ['C']];
+    bars.forEach((arr, k) => {
+      const bt = t0 + (1 + 3 * k) * b;
+      arr.forEach((name, j) => {
+        if (j > 0 && arr[j] === arr[j - 1]) return;
+        const len = arr.slice(j).filter((x, i) => i === 0 || x === name).length;
+        const [ns, r] = CH[name], t = bt + j * b;
+        this.chord(ns, t, len * b, .05); this.bass(r, t, len * b * .9, .22);
+      });
+      for (let j = 0; j < 3; j++) this.hat(bt + j * b, .05, j === 2);
+    });
+    this.capture = null; this.capDest = null;
+    return (25 * b + 1.2) * 1000;
+  },
+};
+
+/* ================= 背景画布 ================= */
+const MODES = {
+  water: { a: '#020b2e', b: '#0d58c2', p: [170, 240, 255], rays: 1, rise: 1 },
+  black: { a: '#000000', b: '#02040a', p: null },
+  dark: { a: '#000604', b: '#06341b', p: [110, 255, 170], rise: .35 },
+  velvet: { a: '#01030f', b: '#0b2a8a', p: [150, 185, 255], streak: 1 },
+  social: { a: '#000000', b: '#04205c', p: [140, 230, 255], rise: .6 },
+};
+const hex = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+const BG = { c: $('#bg'), cfg: MODES.black, cur: [0, 0, 0, 0, 0, 0], tgt: [0, 0, 0, 0, 0, 0], parts: [], bfly: false };
+BG.x = BG.c.getContext('2d');
+BG.set = m => { BG.cfg = MODES[m]; BG.tgt = hex(MODES[m].a).concat(hex(MODES[m].b)); };
+const FX = { c: $('#fx'), conf: [] }; FX.x = FX.c.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = LITE ? 1 : Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+  for (const k of [BG, FX]) { k.c.width = W * DPR; k.c.height = H * DPR; k.x.setTransform(DPR, 0, 0, DPR, 0, 0); }
+}
+addEventListener('resize', resize); resize();
+for (let i = 0; i < (LITE ? 45 : 110); i++) BG.parts.push({ x: Math.random(), y: Math.random(), r: .6 + Math.random() * 2.6, v: .3 + Math.random() * 1, ph: Math.random() * 6.28 });
+const bfly = $('#bfly');
+function frame(t) {
+  const x = BG.x, cfg = BG.cfg;
+  for (let i = 0; i < 6; i++) BG.cur[i] += (BG.tgt[i] - BG.cur[i]) * .04;
+  const c = BG.cur.map(Math.round), gr = x.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, `rgb(${c[0]},${c[1]},${c[2]})`); gr.addColorStop(1, `rgb(${c[3]},${c[4]},${c[5]})`);
+  x.globalCompositeOperation = 'source-over'; x.fillStyle = gr; x.fillRect(0, 0, W, H);
+  if (cfg.p) {
+    const [r, g, b] = cfg.p; x.globalCompositeOperation = 'lighter';
+    if (cfg.rays) {
+      for (let i = 0; i < 6; i++) {
+        const a = Math.sin(t * .00025 + i * 1.7) * .22 + (i - 2.5) * .2, ox = W * (.25 + i * .1), len = H * 1.6, wd = 60 + 40 * Math.sin(t * .0004 + i);
+        x.fillStyle = `rgba(${r},${g},${b},.035)`; x.beginPath(); x.moveTo(ox - 20, -20); x.lineTo(ox + 20, -20);
+        x.lineTo(ox + Math.sin(a) * len + wd, Math.cos(a) * len); x.lineTo(ox + Math.sin(a) * len - wd, Math.cos(a) * len); x.fill();
+      }
+      x.strokeStyle = `rgba(${r},${g},${b},.06)`; x.lineWidth = 1.5;
+      for (let k = 0; k < 4; k++) { x.beginPath(); for (let px = 0; px <= W; px += 20) x.lineTo(px, 40 + k * 26 + Math.sin(px * .008 + t * .001 + k) * 10); x.stroke(); }
+    }
+    for (const p of BG.parts) {
+      if (cfg.streak) {
+        p.y += p.v * .012; if (p.y > 1.1) { p.y = -.1; p.x = Math.random(); }
+        x.strokeStyle = `rgba(${r},${g},${b},${.05 + p.r * .04})`; x.lineWidth = p.r * .6; x.beginPath(); x.moveTo(p.x * W, p.y * H); x.lineTo(p.x * W, p.y * H - 30 - p.r * 30); x.stroke();
+      } else {
+        p.y -= p.v * .0012 * (cfg.rise || .3); if (p.y < -.05) { p.y = 1.05; p.x = Math.random(); }
+        const px = p.x * W + Math.sin(t * .0012 + p.ph) * 12, al = .25 + .25 * Math.sin(t * .003 + p.ph);
+        x.fillStyle = `rgba(${r},${g},${b},${al})`; x.beginPath(); x.arc(px, p.y * H, p.r, 0, 7); x.fill();
+      }
+    }
+  }
+  if (BG.bfly) {
+    const bx = W * (.5 + .38 * Math.sin(t * .00021)), by = H * (.32 + .16 * Math.sin(t * .00047 + 1));
+    const vx = Math.cos(t * .00021) * .38 * W * .00021;
+    bfly.style.transform = `translate(${bx}px,${by}px) rotate(${vx * 40}deg)`;
+  }
+  // 彩纸
+  const fx = FX.x; if (FX.conf.length || FX.dirty) fx.clearRect(0, 0, W, H); FX.dirty = FX.conf.length > 0;
+  for (let i = FX.conf.length - 1; i >= 0; i--) {
+    const p = FX.conf[i]; p.vy += .06; p.vx *= .992; p.vy *= .992; p.x += p.vx + Math.sin(t * .003 + p.ph) * .6; p.y += p.vy; p.r += p.vr;
+    if (p.y > H + 30) { FX.conf.splice(i, 1); continue; }
+    fx.save(); fx.translate(p.x, p.y); fx.rotate(p.r); fx.scale(1, Math.cos(t * .01 + p.ph)); fx.fillStyle = p.c;
+    if (p.s) { fx.beginPath(); fx.arc(0, 0, p.w / 2.4, 0, 7); fx.fill(); } else fx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    fx.restore();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+const COLS = ['#2ee6ff', '#ffffff', '#ff1f4b', '#ffe36b', '#5f8bff', '#9dffcf'];
+function confetti(n = 220) {
+  if (LITE) n = Math.round(n * .5);
+  for (let i = 0; i < n; i++) {
+    const side = i % 3, o = { ph: Math.random() * 6.28, r: Math.random() * 6.28, vr: (Math.random() - .5) * .25, w: 6 + Math.random() * 9, h: 4 + Math.random() * 6, c: COLS[i % COLS.length], s: Math.random() < .25 };
+    if (side === 0) Object.assign(o, { x: Math.random() * W, y: -20 - Math.random() * H * .4, vx: (Math.random() - .5) * 2, vy: 1 + Math.random() * 2 });
+    else { const l = side === 1; Object.assign(o, { x: l ? -10 : W + 10, y: H * .8, vx: (l ? 1 : -1) * (5 + Math.random() * 9), vy: -(8 + Math.random() * 9) }); }
+    FX.conf.push(o);
+  }
+}
+
+/* ================= 交互 / 演出工具 ================= */
+let advanceCb = null, keyHandler = null;
+const waitAdvance = () => new Promise(r => { advanceCb = () => { advanceCb = null; r(); }; });
+const advance = () => advanceCb && advanceCb();
+document.addEventListener('pointerdown', e => { if (e.target.closest('button,.tarot,.cake,.menu-item,#hud')) return; advance(); });
+document.addEventListener('keydown', e => {
+  if (keyHandler) { keyHandler(e); return; }
+  if (['Space', 'Enter', 'KeyZ', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); advance(); }
+});
+const dlg = $('#dialog'), dName = $('#dName'), dText = $('#dText'), dNext = $('#dNext');
+async function say(name, text, speed = 42) {
+  if (dlg.style.display !== 'block') { dlg.style.display = 'block'; dlg.classList.remove('pop'); void dlg.offsetWidth; dlg.classList.add('pop'); }
+  dName.style.display = name ? '' : 'none'; dName.firstChild.textContent = name;
+  dText.textContent = ''; dNext.style.visibility = 'hidden';
+  await new Promise(res => {
+    let i = 0;
+    const iv = setInterval(() => { i++; dText.textContent = text.slice(0, i); if (i % 2) A.blip(); if (i >= text.length) { clearInterval(iv); advanceCb = null; res(); } }, speed);
+    advanceCb = () => { clearInterval(iv); dText.textContent = text; advanceCb = null; res(); };
+  });
+  dNext.style.visibility = 'visible';
+  await waitAdvance();
+}
+const hideDlg = () => { dlg.style.display = 'none'; };
+async function sayAll(lines) { for (const [n, t] of lines) await say(n, t); hideDlg(); }
+async function waitHint(text = '▼ CLICK') { const h = $('#hint'); h.textContent = text; h.style.display = 'block'; await waitAdvance(); h.style.display = 'none'; }
+function show(id) { document.querySelectorAll('.scene').forEach(s => s.classList.toggle('active', s.id === id)); }
+async function wipe(mid) { const w = $('#wipe'); A.whoosh(); w.className = 'in'; await sleep(640); mid && mid(); await sleep(150); w.className = 'out'; await sleep(700); w.className = ''; }
+function shake() { const s = $('#stage'); s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); }
+function flash(green) { const f = $('#flash'); f.className = ''; void f.offsetWidth; f.className = 'go' + (green ? ' green' : ''); }
+let toastT; function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
+$('#bMute').onclick = () => { A.init(); $('#bMute').textContent = A.toggle() ? '♪ ON' : '♪ OFF'; };
+
+/* ================= 月相 ================= */
+function moonPhase(d) { const ref = Date.UTC(2000, 0, 6, 18, 14), days = (new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12) - ref) / 864e5; let p = (days / 29.530588853) % 1; return p < 0 ? p + 1 : p; }
+function moonName(p) { return p < .03 || p > .97 ? '新月' : p < .22 ? '蛾眉月' : p < .28 ? '上弦月' : p < .47 ? '盈凸月' : p < .53 ? '满月' : p < .72 ? '亏凸月' : p < .78 ? '下弦月' : '残月'; }
+function drawMoon(cv, p) {
+  const x = cv.getContext('2d'), S = cv.width, r = S * .36, cx = S / 2, cy = S / 2;
+  x.clearRect(0, 0, S, S);
+  x.fillStyle = 'rgba(14,34,90,.95)'; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
+  x.save(); if (p > .5) { x.translate(S, 0); x.scale(-1, 1); p = 1 - p; }
+  const k = Math.cos(2 * Math.PI * p), g = x.createRadialGradient(cx - r * .3, cy - r * .3, r * .1, cx, cy, r);
+  g.addColorStop(0, '#fffef2'); g.addColorStop(1, '#cfe3ff');
+  x.fillStyle = g; x.shadowColor = 'rgba(180,235,255,.95)'; x.shadowBlur = S * .1;
+  x.beginPath(); x.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false); x.ellipse(cx, cy, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k > 0); x.fill();
+  x.restore();
+  x.strokeStyle = 'rgba(46,230,255,.85)'; x.lineWidth = 3; x.beginPath(); x.arc(cx, cy, r + 12, 0, 7); x.stroke();
+  x.setLineDash([3, 9]); x.beginPath(); x.arc(cx, cy, r + 26, 0, 7); x.stroke();
+}
+
+/* ================= 场景 ================= */
+async function titleScene() {
+  show('s-title'); BG.set('water');
+  await new Promise(r => { keyHandler = () => r(); advanceCb = () => { advanceCb = null; r(); }; });
+  keyHandler = null; advanceCb = null;
+  A.init(); A.confirm(); A.setMode('title');
+  $('.press').style.display = 'none';
+  const menu = $('#menu'), items = [...menu.children]; let sel = 0;
+  menu.classList.add('show');
+  const upd = () => items.forEach((it, i) => it.classList.toggle('sel', i === sel)); upd();
+  await new Promise(res => {
+    const choose = i => {
+      if (items[i].dataset.act === 'start') { A.confirm(); keyHandler = null; items[i].classList.add('chosen'); setTimeout(res, 550); }
+      else { A.buzz(); toast(items[i].dataset.msg); }
+    };
+    items.forEach((it, i) => { it.onmouseenter = () => { if (sel !== i) { sel = i; upd(); A.move(); } }; it.onclick = () => choose(i); });
+    keyHandler = e => {
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { sel = (sel + 1) % items.length; upd(); A.move(); }
+      else if (e.code === 'ArrowUp' || e.code === 'KeyW') { sel = (sel + items.length - 1) % items.length; upd(); A.move(); }
+      else if (['Enter', 'Space', 'KeyZ', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); choose(sel); }
+    };
+  });
+}
+
+async function darkScene() {
+  BG.set('black'); A.setMode('off');
+  const cf = $('#coffins'); cf.innerHTML = '';
+  [[.7, 0], [1, .15], [.8, .3], [1.15, .05], [.75, .4], [.95, .2], [.65, .5]].forEach(([s, d]) => {
+    const i = document.createElement('i'); i.style.width = `${4.2 * s}vw`; i.style.height = `${12 * s}vw`; i.style.transitionDelay = `${.6 + d}s`; cf.appendChild(i);
+  });
+  const clk = $('#clock'), fmt = s => `23:59:${String(s).padStart(2, '0')}`;
+  clk.textContent = fmt(55); await sleep(1100);
+  for (let s = 56; s < 60; s++) { clk.textContent = fmt(s); A.tick(); clk.classList.remove('tk'); void clk.offsetWidth; clk.classList.add('tk'); await sleep(850); }
+  clk.textContent = '00:00:00'; A.boom(); flash(true); shake();
+  document.body.classList.add('darkhour'); BG.set('dark'); A.setMode('dark'); $('#s-dark').classList.add('on');
+  await sleep(3600);
+  await sayAll([
+    ['', '在一天与下一天的缝隙里，藏着不为人知的第 25 个小时。'],
+    ['', '人们称之为——「影时间」。'],
+    ['', '这段时间里，几乎所有人都会化作棺材，沉沉睡去。'],
+    ['', '只有极少数拥有「资质」的人，才能在这里保持清醒。'],
+    ['', '而今晚的影时间……只为一个人而存在。'],
+    ['???', `……醒着吗，${NAME}？`],
+    ['???', '属于你的那一天，就要开始了。'],
+  ]);
+}
+
+async function calScene() {
+  BG.set('water'); A.setMode('beat');
+  const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], DOWCN = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const box = $('#calDate'); box.innerHTML = '';
+  $('#calYear').textContent = `${TODAY.getFullYear()} · CALENDAR`;
+  const h = new Date().getHours();
+  $('#calTime').textContent = h < 5 ? '深夜' : h < 8 ? '清晨' : h < 12 ? '午前' : h < 14 ? '午休' : h < 17 ? '放学后' : h < 19 ? '傍晚' : '夜晚';
+  for (let k = 3; k >= 0; k--) {
+    const d = new Date(TODAY); d.setDate(d.getDate() - k);
+    const old = box.lastElementChild; if (old) { old.classList.add('out'); setTimeout(() => old.remove(), 450); }
+    const el = document.createElement('div'); el.className = 'd in'; const w = d.getDay();
+    el.innerHTML = `${d.getMonth() + 1}/${d.getDate()}<span class="dow ${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}">${DOW[w]}</span>`;
+    box.appendChild(el); A.tick(); if (k === 0) { A.stamp(); shake(); }
+    await sleep(k === 0 ? 800 : 560);
+  }
+  const p = moonPhase(TODAY), mn = moonName(p);
+  drawMoon($('#moonC'), p); $('#moonName').textContent = `MOON · ${mn}`;
+  $('#calMoon').classList.add('show'); $('#calInfo').classList.add('show'); A.chime();
+  await sleep(900);
+  await say('', `${TODAY.getMonth() + 1} 月 ${TODAY.getDate()} 日，${DOWCN[TODAY.getDay()]}。`);
+  await say('', `天气：快晴。今夜的月相是——${mn}。`);
+  await say('', '而今天的日程表上，只写着一件事：');
+  hideDlg();
+  $('#calEvent').classList.add('show'); A.stamp(); shake();
+  await sleep(700);
+  await waitHint();
+}
+
+async function velvetScene() {
+  BG.set('velvet'); A.setMode('velvet'); BG.bfly = true; bfly.style.display = 'block';
+  await sleep(1300);
+  await sayAll([
+    ['伊戈尔', '欢迎来到天鹅绒房间。'],
+    ['伊戈尔', '此处是介于梦境与现实、精神与物质之间的场所。'],
+    ['伊戈尔', `哦呀……今日的客人是${NAME}大人。在如此特别的日子到访，想必是命运的指引。`],
+    ['伊丽莎白', '初次见面，我是伊丽莎白，主人的助手。'],
+    ['伊丽莎白', '今天是您的诞辰之日。请允许我为您进行一次特别的塔罗占卜。'],
+    ['伊丽莎白', '通常只能抽一张……不过今天是特例。请将三张牌，全部翻开吧。'],
+  ]);
+  const READ = {
+    star: ['正位的「星」。象征希望、灵感与心愿。', '今年许下的愿望，都会像夜空中的星星一样，一颗接一颗被点亮。'],
+    sun: ['正位的「太阳」。象征喜悦、成功与生命力。', '愿您往后的每一天都阳光充足——笑起来的时候，比盛夏还要明亮。'],
+    fool: ['「愚者」，编号为零。是一切的起点，蕴含着无限的可能。', '新的一岁，是一段尚未书写的旅程。翻开第一页的人，正是您自己。'],
+  };
+  const cards = $('#cards'), hint = $('#hint');
+  cards.classList.add('ready'); hint.textContent = '点击卡牌，将其翻开'; hint.style.display = 'block';
+  await new Promise(res => {
+    let busy = false, n = 0;
+    cards.querySelectorAll('.tarot').forEach(c => c.onclick = async () => {
+      if (busy || c.classList.contains('flipped')) return;
+      busy = true; hint.style.display = 'none'; c.classList.add('flipped'); A.flip(); await sleep(700); A.chime(); shake();
+      await sayAll(READ[c.dataset.k].map(t => ['伊丽莎白', t]));
+      busy = false;
+      if (++n === 3) res(); else hint.style.display = 'block';
+    });
+  });
+  cards.classList.remove('ready');
+  await sleep(400);
+  await sayAll([
+    ['伊戈尔', '星辰、太阳，以及愚者……呵呵，真是耀眼的牌面。'],
+    ['伊戈尔', '命运之轮已经开始转动。那么，请往门的另一边去吧——'],
+    ['伊戈尔', '有一段羁绊，正在那里等待着您。'],
+  ]);
+}
+
+async function socialScene() {
+  BG.set('social');
+  const pips = $('#pips'); pips.innerHTML = '<i></i>'.repeat(10);
+  await sleep(800);
+  for (const l of document.querySelectorAll('.sl')) { l.classList.add('show'); A.chime(); await sleep(2100); }
+  await sleep(700);
+  $('#slLines').classList.add('hide'); await sleep(700);
+  $('#slPanel').classList.add('show'); A.stamp(); await sleep(900);
+  const ps = pips.children;
+  for (let i = 0; i < 10; i++) { ps[i].classList.add('on'); A.pip(i); await sleep(i < 9 ? 160 : 300); }
+  $('#slMax').classList.add('show'); A.rankup(); shake(); flash();
+  await sleep(1400);
+  await sayAll([
+    ['', `与「${NAME}」之间的羁绊，达到了极限。`],
+    ['', '「宇宙」——所有羁绊汇聚而成的、最终也是最强的力量。'],
+    ['', '……现在，是时候发动那一击了。'],
+  ]);
+  BG.bfly = false; bfly.style.display = 'none';
+}
+
+async function finaleScene() {
+  A.setMode('off'); BG.set('black'); show('s-allout');
+  const ao = $('#s-allout'); ao.classList.add('go');
+  A.slash(); await sleep(120); A.slash(); await sleep(200);
+  A.stamp(); shake(); await sleep(400);
+  A.boom(); shake(); flash(); await sleep(2300);
+  await wipe(() => { show('s-final'); BG.set('water'); A.setMode('beat'); });
+  const L = [
+    '生日快乐！',
+    '新的一岁，愿你像满月下的天鹅绒房间——神秘、温柔，又自带光芒。',
+    '愿你身边永远有并肩作战的伙伴，每一段羁绊都能升到 RANK MAX。',
+    '愿你在每一个难熬的「影时间」里，都能召唤出最强大的自己。',
+    '也愿那些平凡的日常——放学后的闲逛、深夜的一碗拉面、和谁一起看过的月亮——都闪闪发光。',
+    'Memento mori。正因为时间有限，每一天才值得被好好珍惜。',
+    '今天，就请尽情做这个世界的主角吧。',
+  ];
+  $('#lBody').innerHTML = L.map((s, i) => `<p style="--i:${i}"></p>`).join('');
+  [...$('#lBody').children].forEach((p, i) => p.textContent = L[i]);
+  $('#lFrom').textContent = FROM ? `—— ${FROM}` : '—— 来自天鹅绒房间的祝福';
+  const cake = $('#cake');
+  await new Promise(r => { cake.onclick = () => { cake.onclick = null; r(); }; });
+  A.blow(); cake.classList.add('out'); $('#fHint').style.visibility = 'hidden';
+  await sleep(1300);
+  A.setMode('off'); A.fanfare(); flash(); shake(); confetti(260);
+  $('#s-final').classList.add('celebrate');
+  await sleep(900);
+  singing();
+  setTimeout(() => confetti(160), 4500);
+}
+let singT;
+function singing() {
+  clearTimeout(singT); A.setMode('off');
+  const ms = A.playBirthday();
+  singT = setTimeout(() => { A.setMode('beat'); confetti(120); }, ms);
+}
+$('#bSong').onclick = () => { A.init(); singing(); confetti(120); };
+$('#bReplay').onclick = () => location.reload();
+
+(async function main() {
+  await titleScene();
+  await wipe(() => show('s-dark'));
+  await darkScene();
+  await wipe(() => { document.body.classList.remove('darkhour'); show('s-cal'); });
+  await calScene();
+  await wipe(() => show('s-velvet'));
+  await velvetScene();
+  await wipe(() => show('s-social'));
+  await socialScene();
+  await finaleScene();
+})();
+</script>
+</body>
+</html>
